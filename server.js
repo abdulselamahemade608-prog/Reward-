@@ -1,4 +1,5 @@
 const express = require('express');
+require('express-async-errors');
 const crypto = require('crypto');
 const { Pool } = require('pg');
 
@@ -17,6 +18,16 @@ const tg = (m, b) => fetch(`https://api.telegram.org/bot${BOT}/${m}`, {
 
 const app = express();
 app.use(express.json());
+
+// Express 4 does not catch async errors -> requests hang forever. Wrap every handler.
+['get','post','delete'].forEach(m => {
+  const orig = app[m].bind(app);
+  app[m] = (p, ...h) => orig(p, ...h.map(f => (req, res, next) =>
+    Promise.resolve(f(req, res, next)).catch(e => {
+      console.error(e);
+      res.status(500).json({ error: String(e.message || e) });
+    })));
+});
 
 /* ---------- helpers ---------- */
 async function upsertUser(u, ref) {
@@ -153,5 +164,7 @@ app.delete('/api/admin/channel/:id', auth, admin, async (req, res) => {
   await q('DELETE FROM channels WHERE id=$1', [req.params.id]);
   res.json({ ok: true });
 });
+
+app.use((err, req, res, next) => { console.error(err); res.status(500).json({ error: String(err.message || err) }); });
 
 module.exports = app;
