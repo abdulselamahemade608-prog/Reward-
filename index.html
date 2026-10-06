@@ -87,9 +87,15 @@ function onlyTelegram() {
   $('#app').innerHTML = '<p class="mut center">Please open this app from Telegram.</p>';
 }
 
+function showErr(m) {
+  $('#app').innerHTML = '<div class="card" style="margin-top:30vh"><b style="color:var(--bad)">Something went wrong</b><p class="mut" style="margin-top:6px;word-break:break-word">' + esc(m) + '</p><button class="btn" style="margin-top:12px" onclick="load()">Try again</button></div>';
+}
+
 async function load() {
-  D = await api('me');
-  if (!D || D.error) return onlyTelegram();
+  try { D = await api('me'); }
+  catch (e) { return showErr('Server not responding. Check Vercel logs.'); }
+  if (D && D.error === 'unauthorized') return onlyTelegram();
+  if (!D || D.error) return showErr(D && D.error);
   if (D.missing.length) return gate();
   $('#nav').hidden = false;
   const items = [['ads','tv','Ads'],['invite','users','Invite'],['profile','user','Profile']];
