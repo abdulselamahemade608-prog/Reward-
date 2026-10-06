@@ -1,5 +1,4 @@
 const express = require('express');
-require('express-async-errors');
 const crypto = require('crypto');
 const { Pool } = require('pg');
 
@@ -18,6 +17,11 @@ const tg = (m, b) => fetch(`https://api.telegram.org/bot${BOT}/${m}`, {
 
 const app = express();
 app.use(express.json());
+// catch async errors without extra packages
+['get', 'post', 'delete'].forEach(m => {
+  const orig = app[m].bind(app);
+  app[m] = (p, ...h) => orig(p, ...h.map(fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next)));
+});
 
 // Express 4 does not catch async errors -> requests hang forever. Wrap every handler.
 ['get','post','delete'].forEach(m => {
